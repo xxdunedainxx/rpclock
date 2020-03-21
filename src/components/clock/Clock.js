@@ -37,8 +37,7 @@ export class Clock extends React.Component {
    }
 
    clockInterval() {
-    setInterval(() => {
-      console.log('Interval triggered');
+    var interval = setInterval(() => {
       this.state.date.setMilliseconds(this.state.date.getMilliseconds() + this.interval)
       this.setState(
         {date: (this.state.date )}
@@ -47,6 +46,7 @@ export class Clock extends React.Component {
       if(this.firstLoad) {
         document.getElementById("loading").style.visibility = "hidden";
         document.getElementById("clockSection").style.visibility = "visible";
+        this.firstLoad = false;
       }
     }, this.interval);
    }
