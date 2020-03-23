@@ -3,6 +3,16 @@ import Collapsible from 'react-collapsible';
 import {Button, FormControl} from 'react-bootstrap';
 import './AlarmPicker.css';
 
+function toggleAlarmVisibility(visible) {
+  if(visible) {
+    document.getElementById("alarmTrigger").style.visibility = "visible"
+    document.getElementById("alarmTrigger").style.display = "inline"
+  } else {
+      document.getElementById("alarmTrigger").style.visibility = "hidden"
+      document.getElementById("alarmTrigger").style.display = "none"
+  }
+}
+
 class AddAlarmCollapsible extends Collapsible {
   constructor(props) {
     super(props);
@@ -17,10 +27,20 @@ class AddAlarmCollapsible extends Collapsible {
   }
 }
 
-class AlarmSound {
+class AlarmSound  {
   constructor(soundName, fileValue) {
     this.name = soundName
     this.file = fileValue
+  }
+}
+
+class AlarmSoundComponent extends React.Component  {
+  constructor(alarmSound) {
+    this.alarmSound = alarmSound
+  }
+
+  render() {
+    return this.alarmSound.name
   }
 }
 
@@ -91,6 +111,7 @@ class AlarmConfig extends React.Component {
       console.log("pausing audio")
       console.log(audioElement)
       this.stop();
+      toggleAlarmVisibility(false)
     })
   }
 
@@ -146,17 +167,35 @@ export class AlarmPicker extends React.Component {
       {
         "description" : "Some time",
          "time": 19, 
-         "sound" :  {
-           "soundName":"applause sound", 
-           "fileValue" : "/alarmsounds/applause.mp3"
-          },
-         "id": 1 
+         "sound" : null,
+         "soundItemIndex": 0 
       },
     ]
+
+    for(var i = 0; i < this.alarms.length; i++) {
+      this.alarms[i]["sound"] = this.sounds[this.alarms[i]["soundItemIndex"]]
+      console.log(this.alarms[i]["sound"])
+    }
   }
 
   fetchAlarmSounds() {
-    this.sounds = []
+    this.sounds = [
+      {
+        "id" : 0,
+        "soundName":"applause sound", 
+        "fileValue" : "/alarmsounds/applause.mp3"
+       }
+    ]
+  }
+
+  renderSoundOptionList() {
+    return (
+      this.sounds.map(
+        sound => (
+          <option value={sound.id}>{sound.soundName}</option>
+        )
+      )
+    );
   }
 
   renderAlarmsTable() { 
@@ -183,8 +222,7 @@ export class AlarmPicker extends React.Component {
   alarmEvent(object) {
     console.log("alarm event ")
     console.log(object)
-    document.getElementById("alarmTrigger").style.visibility = "visible"
-    document.getElementById("alarmTrigger").style.display = "inline"
+    toggleAlarmVisibility(true)
     this.currentAlarm = object
     console.log(this.currentAlarm)
   }
@@ -193,8 +231,7 @@ export class AlarmPicker extends React.Component {
     console.log(this)
     if(this.currentAlarm) {
       this.currentAlarm.stop();
-      document.getElementById("alarmTrigger").style.visibility = "hidden"
-      document.getElementById("alarmTrigger").style.display = "none"
+      toggleAlarmVisibility(false)
     } else {
       console.log("no alarm to stop")
     }
@@ -212,9 +249,8 @@ export class AlarmPicker extends React.Component {
           <label for="alarmTime">Choose a new alarm time</label>
           <input type="time" id="alarmTime" name="alarmTime" required />
           <select>
-            <option value="time" disabled selected>Pick a sound</option>
-            <option value="8">8:00am</option>
-            <option value="9">9:00am</option>
+            <option value="time" disabled selected>Pick an alarm sound</option>
+            {this.renderSoundOptionList()}
           </select>
         </div>
         <button href="/" class="button">Submit</button>

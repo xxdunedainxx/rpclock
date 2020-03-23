@@ -1,0 +1,17 @@
+{
+  "alarms" : [
+    {
+      "description" : "Some time",
+       "time": 19,
+       "sound" : null,
+       "soundItemIndex": 0
+    }
+  ],
+  "sounds" : [
+    {
+    "id" : 0,
+    "soundName":"applause sound",
+    "fileValue" : "/alarmsounds/applause.mp3"
+   }
+  ]
+}

@@ -1,43 +1,103 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO, emit, send
 from flask_cors import CORS
+import json
+import os
 from threading import Lock
+from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 cors = CORS(app, resources={r"*": {"origins": "http://localhost:3000/"}})
-thread = None
-thread_lock = Lock()
-def background_thread():
-    """Example of how to send server generated events to clients."""
-    count = 0
-    while True:
-        socketio.sleep(10)
-        count += 1
-        socketio.emit('my_response',
-                      {'data': 'Server generated event', 'count': count},
-                      namespace='/test')
+
+class AlarmSoundDB:
+
+    def __init__(self):
+        self.__path = './alarms.db'
+        self.__db = {
+            "alarms" : [],
+            "sounds" : [],
+        }
+
+        self.__file_safe_check()
+        self.__load_db()
+
+    def fetch_db(self):
+        return self.__db
+
+    def __dump_db(self):
+        with open(self.__path, "w+") as outfile:
+            outfile.write(json.dumps({}))
+
+    def __file_safe_check(self):
+        if os.path.exists(self.__path) is False:
+            self.__dump_db()
+
+    def __update_db(self, nDb: {}):
+        self.__db=nDb
+        self.__dump_db()
+
+    def __load_db(self):
+        self.__db = json.load(
+            open(self.__path)
+        )
+
+db = AlarmSoundDB()
+
+@app.route('/ping', methods=['GET'])
+def test():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
+
+@app.route('/alarm', methods=['GET'])
+def getAlarms():
+    return jsonify(
+        db.fetch_db()["alarms"]
+    )
+
+@app.route('/sound', methods=['GET'])
+def getSounds():
+    return jsonify(
+        db.fetch_db()["sounds"]
+    )
 
 
-@socketio.on('connect')
-def test_connect():
-    global thread
-    with thread_lock:
-        if thread is None:
-            thread = socketio.start_background_task(background_thread)
-    emit('my_response', {'data': 'Connected', 'count': 0})
+@app.route('/alarm', methods=['POST'])
+def addAlarm():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
 
-@socketio.on('disconnect')
-def test_disconnect():
-    print('Client disconnected')
+@app.route('/sound', methods=['POST'])
+def addAlarmSound():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
 
-@socketio.on('message')
-def handle_message(message):
-    send(message, namespace='/chat')
+@app.route('/alarm', methods=['PATCH'])
+def updateAlarm():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
 
-def some_function():
-    socketio.emit('some event', {'data': 42})
+@app.route('/sound', methods=['POST'])
+def updateSound():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
+
+
 if __name__ == '__main__':
-    socketio.start_background_task(background_thread)
-    socketio.run(app, debug = False)
+    app.run()
     exit(0)
