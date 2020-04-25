@@ -13,6 +13,20 @@ function toggleAlarmVisibility(visible) {
   }
 }
 
+class AddSoundColapsible extends Collapsible {
+  constructor(props) {
+    super(props);
+  }
+
+  triggerWhenOpen () {
+    this.trigger = "- Close"
+  }
+
+  onClosing() {
+    this.trigger = "+ New sound"
+  }
+}
+
 class AddAlarmCollapsible extends Collapsible {
   constructor(props) {
     super(props);
@@ -120,13 +134,20 @@ class AlarmConfig extends React.Component {
     this.audioElement = document.getElementById(this.uid)
     console.log(this.audioElement)
   }
+  contentChange(e) {
+    console.log(e.target)
+  }
+
+  emitConfigUpdate() {
+    console.log("updating blah")
+  }
 
   render() {
     return(
     <tr>
-      <td contenteditable="true">{this.description}</td>
-      <td contenteditable="true">{this.time}</td>
-      <td contenteditable="true">{this.alarmSound.name}<audio controls src={this.alarmSound.file} id={this.uid} ></audio></td>
+      <td contenteditable="true" onInput={this.contentChange}>{this.description}</td>
+      <td contenteditable="true" onInput={this.contentChange}>{this.time}</td>
+      <td contenteditable="true" onInput={this.contentChange}>{this.alarmSound.name}<audio controls src={this.alarmSound.file} id={this.uid} ></audio></td>
     </tr>
     );
   }
@@ -154,43 +175,80 @@ class AlarmConfig extends React.Component {
 export class AlarmPicker extends React.Component {
   constructor(props) {
     super(props);
+    this.state = {
+      alarms: [],
+      sounds: [],
+    }
 
     this.alarms = [];
     this.sounds = [];
 
-    this.fetchAlarmSounds();
-    this.fetchAlarmConfigs();
+    this.fetchBoth();
   }
 
   fetchAlarmConfigs() {
-    this.alarms = [
-      {
-        "description" : "Some time",
-         "time": 19, 
-         "sound" : null,
-         "soundItemIndex": 0 
+    return fetch("http://127.0.0.1:5000/alarm",                {
+      headers: {
+        'Content-Type': 'application/json'
       },
-    ]
-
-    for(var i = 0; i < this.alarms.length; i++) {
-      this.alarms[i]["sound"] = this.sounds[this.alarms[i]["soundItemIndex"]]
-      console.log(this.alarms[i]["sound"])
-    }
+      method: 'GET'
+    })
+    .then(res => res.json())
+    .then(
+      (result) => {
+        console.log("api respond")
+        console.log(result)
+        this.alarms = result
+        for(var i = 0; i < this.alarms.length; i++) {
+          this.alarms[i]["sound"] = this.state.sounds[this.alarms[i]["soundItemIndex"]]
+        }
+        this.setState(
+          {
+            alarms: this.alarms
+          }
+        )
+      },
+      (error) => {
+        console.log("error?")
+        console.log(error)
+      }
+    )
   }
 
   fetchAlarmSounds() {
-    this.sounds = [
-      {
-        "id" : 0,
-        "soundName":"applause sound", 
-        "fileValue" : "/alarmsounds/applause.mp3"
-       }
-    ]
+    return fetch("http://127.0.0.1:5000/sound",                {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      method: 'GET'
+    })
+    .then(res => res.json())
+    .then(
+      (result) => {
+        this.sounds = result
+        this.setState(
+          {
+            sounds: this.sounds
+          }
+        )
+      },
+      (error) => {
+        console.log("error?")
+        console.log(error)
+      }
+    )
+  }
+
+  fetchBoth() {
+    this.fetchAlarmSounds()
+    .then(
+      this.fetchAlarmConfigs()
+    )
   }
 
   renderSoundOptionList() {
     return (
-      this.sounds.map(
+      this.state.sounds.map(
         sound => (
           <option value={sound.id}>{sound.soundName}</option>
         )
@@ -209,7 +267,7 @@ export class AlarmPicker extends React.Component {
           </tr>
         </thead>
         <tbody>
-          {this.alarms.map(
+          {this.state.alarms.map(
             alarm => (
               <AlarmConfig description={alarm.description} time={alarm.time} sound={alarm.sound} id={alarm.id} parent={this}/>
             )
@@ -255,6 +313,14 @@ export class AlarmPicker extends React.Component {
         </div>
         <button href="/" class="button">Submit</button>
       </AddAlarmCollapsible>
+      <br />
+      <AddSoundColapsible trigger="+ New sound" classParentString="addAlarm" triggerWhenOpen="- Close">
+        <div class="info">
+          <input class="sname" type="text" name="name" placeholder="Sound name" />
+          <input type="file" name="fileToUpload" id="fileToUpload"></input>
+        </div>
+        <button href="/" class="button">Submit</button>
+      </AddSoundColapsible>
       {this.renderAlarmsTable()}
       </div>
       </div>

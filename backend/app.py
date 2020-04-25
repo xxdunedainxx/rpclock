@@ -7,11 +7,9 @@ from threading import Lock
 from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
-cors = CORS(app, resources={r"*": {"origins": "http://localhost:3000/"}})
+cors = CORS(app)
 
 class AlarmSoundDB:
-
     def __init__(self):
         self.__path = './alarms.db'
         self.__db = {
