@@ -1,10 +1,8 @@
 from flask import Flask, render_template, jsonify
-from flask_socketio import SocketIO, emit, send
 from flask_cors import CORS
 import json
 import os
 from threading import Lock
-from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 cors = CORS(app)
@@ -86,6 +84,15 @@ def updateAlarm():
             "result" : "api up!"
         }
     )
+
+@app.route('/alarm', methods=['DELETE'])
+def updateAlarm():
+    return jsonify(
+        {
+            "result" : "api up!"
+        }
+    )
+
 
 @app.route('/sound', methods=['POST'])
 def updateSound():

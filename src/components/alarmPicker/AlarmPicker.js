@@ -66,22 +66,36 @@ class AlarmSounds {
 class AlarmConfig extends React.Component {
   constructor(props) {
     super(props);
-    console.log(props)
-    // type int
-    this.time = this.checkTime(props.time)
-    // type string
-    this.description = props.description
-    // type AlarmSound 
+    // props.description AlarmSound 
+    this.state = {
+      time: null,
+      description: null,
+      alarmSound: null,
+    }
+    this.props = props;
     this.alarmSound = new AlarmSound(props.sound.soundName, props.sound.fileValue)
-    // if alarm is on
-    this.enabled = true;
     // uid 
     this.uid = props.id;
-    this.clockInterval = null;
-    this.alarmInterval()
     this.parent = props.parent;
     this.currentAlarm = null;
-    console.log(this)
+  }
+
+  update(time, description, soundName, fileValue) {
+    this.setState(
+      {
+        time: time,
+        description: description,
+        alarmSound: new AlarmSound(soundName,fileValue),
+      },
+      () => {
+        console.log(this.state);
+        // if alarm is on
+        this.enabled = true;
+        this.clockInterval = null;
+        this.alarmInterval();
+        console.log(this)
+      }
+    );
   }
 
   checkTime(time) {
@@ -96,19 +110,21 @@ class AlarmConfig extends React.Component {
   }
 
   calculateInterval() {
-    var midnightMili = 24 * 3600000;
-    var now = new Date();
-    var nowMili = (now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000)
-    var hoursBuffer = 0;
-    var timeMiliSeconds =this.time * 3600000;
-    if(nowMili < timeMiliSeconds) {
-      hoursBuffer = timeMiliSeconds - nowMili;
-    } else {
-      hoursBuffer = (midnightMili - nowMili) + timeMiliSeconds;
+    if(this.state.time) {
+      var midnightMili = 24 * 3600000;
+      var now = new Date();
+      var nowMili = (now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000)
+      var hoursBuffer = 0;
+      var timeMiliSeconds =this.state.time * 3600000;
+      if(nowMili < timeMiliSeconds) {
+        hoursBuffer = timeMiliSeconds - nowMili;
+      } else {
+        hoursBuffer = (midnightMili - nowMili) + timeMiliSeconds;
+      }
+      
+      console.log(hoursBuffer);
+      return hoursBuffer;
     }
-    
-    console.log(hoursBuffer);
-    return hoursBuffer;
   }
 
   sound() {
@@ -130,9 +146,9 @@ class AlarmConfig extends React.Component {
   }
 
   componentDidMount() {
-    console.log("grabbing audio element")
+    this.update(this.props.time, this.props.description, this.props.sound.soundName, this.props.sound.fileValue)
     this.audioElement = document.getElementById(this.uid)
-    console.log(this.audioElement)
+    this.enabled=true;
   }
   contentChange(e) {
     console.log(e.target)
@@ -142,18 +158,34 @@ class AlarmConfig extends React.Component {
     console.log("updating blah")
   }
 
+  removeAlarm() {
+    console.log('Removing myself..')
+    this.parent.removeAlarm(this)
+  }
+
   render() {
-    return(
-    <tr>
-      <td contenteditable="true" onInput={this.contentChange}>{this.description}</td>
-      <td contenteditable="true" onInput={this.contentChange}>{this.time}</td>
-      <td contenteditable="true" onInput={this.contentChange}>{this.alarmSound.name}<audio controls src={this.alarmSound.file} id={this.uid} ></audio></td>
-    </tr>
-    );
+    console.log(this.state)
+    if(this.enabled) {
+      return(
+      <tr>
+        <td contenteditable="true" onInput={this.contentChange}>
+          <div>
+            <button onClick={this.removeAlarm.bind(this)} style={{"height": "3.5%", "width":"12%", "borderRadius":"7.5%", "margin":0, "display": "inline-block"}}>x</button> {this.state.description}
+            </div>
+         </td>
+        <td contenteditable="true" onInput={this.contentChange}>{this.state.time}</td>
+        <td contenteditable="true" onInput={this.contentChange}>{this.state.alarmSound.name}<audio controls src={this.alarmSound.file} id={this.uid} ></audio></td>
+      </tr>
+      );
+    } else {
+      return (
+        <b>No data to return..</b>
+      );
+    }
   }
   triggerAlarm() { 
     // if enabled, WAKE UP 
-    if(this.enabled) {
+    if(this.enabled && this.state.time) {
       this.audioElement.play()
       this.parent.alarmEvent(this)
       this.clearAlarm()
@@ -178,12 +210,43 @@ export class AlarmPicker extends React.Component {
     this.state = {
       alarms: [],
       sounds: [],
+      backendAvail: null,
     }
-
+    
     this.alarms = [];
     this.sounds = [];
-
+    this.pingBackend();
     this.fetchBoth();
+  }
+
+  pingBackend() {
+   return fetch("http://127.0.0.1:5000/ping",                {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      method: 'GET'
+    })
+    .then(res => res.json())
+    .then(  
+      (result) => {
+        this.setState(
+          {
+            backendAvail: true
+          }
+        )
+        
+        // then fetch other dependencies
+        //this.fetchBoth()
+      },(error) => {
+        console.log("Backend not available")
+        console.log(error)
+        this.setState(
+          {
+            backendAvail: false
+          }
+        )
+      }
+    )
   }
 
   fetchAlarmConfigs() {
@@ -239,6 +302,30 @@ export class AlarmPicker extends React.Component {
     )
   }
 
+  deleteAlarm(object) {
+    return fetch("http://127.0.0.1:5000/alarm",                {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(
+      (result) => {
+        this.sounds = result
+        this.setState(
+          {
+            sounds: this.sounds
+          }
+        )
+      },
+      (error) => {
+        console.log("error?")
+        console.log(error)
+      }
+    )
+  }
+
   fetchBoth() {
     this.fetchAlarmSounds()
     .then(
@@ -257,24 +344,24 @@ export class AlarmPicker extends React.Component {
   }
 
   renderAlarmsTable() { 
-    return (
-      <table class="container">
-        <thead>
-          <tr>
-            <th><h1>Description</h1></th>
-            <th><h1>Time</h1></th>
-            <th><h1>sound</h1></th>
-          </tr>
-        </thead>
-        <tbody>
-          {this.state.alarms.map(
-            alarm => (
-              <AlarmConfig description={alarm.description} time={alarm.time} sound={alarm.sound} id={alarm.id} parent={this}/>
-            )
-          )}
-        </tbody>
-      </table>
-    );
+      return (
+        <table class="container">
+          <thead>
+            <tr>
+              <th><h1>Description</h1></th>
+              <th><h1>Time</h1></th>
+              <th><h1>sound</h1></th>
+            </tr>
+          </thead>
+          <tbody>
+            {this.state.alarms.map(
+              alarm => (
+                <AlarmConfig description={alarm.description} time={alarm.time} sound={alarm.sound} id={alarm.id} parent={this}/>
+              )
+            )}
+          </tbody>
+        </table>
+      );
   }
 
   alarmEvent(object) {
@@ -283,6 +370,13 @@ export class AlarmPicker extends React.Component {
     toggleAlarmVisibility(true)
     this.currentAlarm = object
     console.log(this.currentAlarm)
+  }
+
+  removeAlarm(object) {
+    console.log("removing object")
+    console.log(object)
+
+    this.deleteAlarm(object)
   }
 
   stopAlarm() {
@@ -296,35 +390,42 @@ export class AlarmPicker extends React.Component {
   }
 
   render(){ 
-    return (
-      <div>
-      <div class="main-block">
-      <h3>Manage Alarms</h3>
-      <button id="alarmTrigger" onClick={this.stopAlarm.bind(this)}>Stop alarm!</button>
-      <AddAlarmCollapsible trigger="+ Alarm" classParentString="addAlarm" triggerWhenOpen="- Close" >
-        <div class="info">
-          <input class="fname" type="text" name="name" placeholder="Alarm Description" />
-          <label for="alarmTime">Choose a new alarm time</label>
-          <input type="time" id="alarmTime" name="alarmTime" required />
-          <select>
-            <option value="time" disabled selected>Pick an alarm sound</option>
-            {this.renderSoundOptionList()}
-          </select>
+    if(true){
+      return (
+        
+        <div>
+        <div class="main-block">
+        <h3>Manage Alarms</h3>
+        <button id="alarmTrigger" onClick={this.stopAlarm.bind(this)}>Stop alarm!</button>
+        <AddAlarmCollapsible trigger="+ Alarm" classParentString="addAlarm" triggerWhenOpen="- Close" >
+          <div class="info">
+            <input class="fname" type="text" name="name" placeholder="Alarm Description" />
+            <label for="alarmTime">Choose a new alarm time</label>
+            <input type="time" id="alarmTime" name="alarmTime" required />
+            <select>
+              <option value="time" disabled selected>Pick an alarm sound</option>
+              {this.renderSoundOptionList()}
+            </select>
+          </div>
+          <button href="/" class="button">Submit</button>
+        </AddAlarmCollapsible>
+        <br />
+        <AddSoundColapsible trigger="+ New sound" classParentString="addAlarm" triggerWhenOpen="- Close">
+          <div class="info">
+            <input class="sname" type="text" name="name" placeholder="Sound name" />
+            <input type="file" name="fileToUpload" id="fileToUpload"></input>
+          </div>
+          <button href="/" class="button">Submit</button>
+        </AddSoundColapsible>
+        {this.renderAlarmsTable()}
         </div>
-        <button href="/" class="button">Submit</button>
-      </AddAlarmCollapsible>
-      <br />
-      <AddSoundColapsible trigger="+ New sound" classParentString="addAlarm" triggerWhenOpen="- Close">
-        <div class="info">
-          <input class="sname" type="text" name="name" placeholder="Sound name" />
-          <input type="file" name="fileToUpload" id="fileToUpload"></input>
         </div>
-        <button href="/" class="button">Submit</button>
-      </AddSoundColapsible>
-      {this.renderAlarmsTable()}
-      </div>
-      </div>
-    );
+      );
+    } else if(this.state.backendAvail == null) {
+      return (<p>Loading...</p>)
+    } else {
+      return (<h3>FAILED TO LOAD FROM BACKEND</h3>)
+    }
   }
 }
 
